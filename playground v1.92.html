@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maidocs Playground — Ultimate Flux Pro</title>
+    <style>
+        :root {
+            --accent: #00ffcc;
+            --text-main: #fff;
+            --font: 'Inter', -apple-system, system-ui, sans-serif;
+            --sidebar-bg: rgba(10, 10, 10, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: var(--text-main); font-family: var(--font); overflow: hidden; }
+        canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+
+        #branding-anchor {
+            position: absolute;
+            left: 60px; top: 0; bottom: 0;
+            pointer-events: none; z-index: 1004;
+            display: flex; align-items: center;
+        }
+
+        #left-hover-zone {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 450px; z-index: 1005;
+            display: flex; align-items: center; padding-left: 60px;
+        }
+
+        #sidebar-wrapper {
+            opacity: 0; transform: translateX(-20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            pointer-events: none;
+        }
+
+        #left-hover-zone:hover #sidebar-wrapper {
+            opacity: 1; transform: translateX(0); pointer-events: auto;
+        }
+
+        #sidebar {
+            width: 260px; background: var(--sidebar-bg); backdrop-filter: blur(30px);
+            padding: 20px; border-radius: 4px; border: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-height: 90vh; overflow-y: auto;
+        }
+
+        .sidebar-section { display: flex; flex-direction: column; gap: 8px; }
+        .section-label { font-size: 8px; text-transform: uppercase; color: var(--accent); letter-spacing: 2px; font-weight: 800; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+
+        .slider-group { display: flex; flex-direction: column; gap: 4px; }
+        .label-row { display: flex; justify-content: space-between; font-size: 8px; color: #aaa; text-transform: uppercase; font-weight: 700; }
+        .label-row b { color: var(--accent); font-family: monospace; font-size: 10px; }
+        
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 2px; background: rgba(255,255,255,0.2); outline: none; cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; background: #fff; border: 1px solid var(--accent); border-radius: 50%; }
+
+        .p-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; padding: 7px 10px; font-size: 9px; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .p-btn:hover { background: #fff; color: #000; }
+        .p-btn.accent { background: var(--accent); color: #000; font-weight: 900; border: none; text-align: center; }
+
+        select { background: rgba(0,0,0,0.9); color: #fff; border: 1px solid var(--border); padding: 7px; font-size: 9px; text-transform: uppercase; outline: none; cursor: pointer; width: 100%; }
+
+        #bottom-hover-zone {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 80px; z-index: 1006;
+            display: flex; align-items: center; justify-content: center; padding: 0 60px;
+        }
+
+        #timeline-wrapper {
+            width: 100%; opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        #bottom-hover-zone:hover #timeline-wrapper {
+            opacity: 1; pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="branding-anchor"></div>
+
+    <div id="left-hover-zone">
+        <div id="sidebar-wrapper">
+            <div style="height: 100px;"></div>
+            <div id="sidebar">
+                <button class="p-btn accent" onclick="document.documentElement.requestFullscreen()">Volledig Scherm</button>
+                
+                <div class="sidebar-section">
+                    <span class="section-label">Bron Selectie</span>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                        <button class="p-btn" onclick="applyPreset('kruis')">Hart</button>
+                        <button class="p-btn" onclick="applyPreset('punt')">Paard</button>
+                        <button class="p-btn" style="grid-column: span 2;" onclick="applyPreset('landschap')">Landschap</button>
+                    </div>
+                    <button class="p-btn" onclick="document.getElementById('fileInput').click()">Upload Eigen Bestand</button>
+                    <input type="file" id="fileInput" hidden accept="video/*,image/*" onchange="handleUpload(event)">
+                </div>
+
+                <div class="sidebar-section">
+                    <span class="section-label">Interactie & Kleur</span>
+                    <div class="slider-group"><div class="label-row">Muis Kracht <b id="mouseVal">0.0</b></div><input type="range" id="mouseSens" min="0" max="100" step="1" value="0"></div>
+                    <select id="colorMode" onchange="state.colorMode = this.value">
+                        <option value="normal">Origineel</option>
+                        <option value="mono">Monochroom</option>
+                        <option value="glimmer">Glimmer Stand ✨</option>
+                        <option value="warm">Warme Puls</option>
+                        <option value="hue">Rainbow Detail Shift</option>
+                        <option value="glow">Luminantie Glow</option>
+                        <option value="negative">Negatief</option>
+                        <option value="cyber">Cyberpunk</option>
+                        <option value="acid">Acid Trip</option>
+                    </select>
+                </div>
+
+                <div class="sidebar-section">
+                    <span class="section-label">Flux & Rimpel Engine</span>
+                    <div class="slider-group"><div class="label-row">Vloeiing <b id="turbVal">0.0</b></div><input type="range" id="turb" min="0" max="100" step="1" value="10"></div>
+                    <div class="slider-group"><div class="label-row">Rimpels <b id="rippleVal">0.0</b></div><input type="range" id="ripple" min="0" max="100" step="1" value="15"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <span class="section-label">Beeld & Filters</span>
+                    <select id="dotShape" onchange="state.dotShape = this.value">
+                        <option value="circle">Cirkels</option>
+                        <option value="plus">Plusjes (+)</option>
+                        <option value="cross">Kruizen (X)</option>
+                        <option value="square">Vierkanten</option>
+                    </select>
+                    <div class="slider-group"><div class="label-row">Raster <b id="gridVal">12</b></div><input type="range" id="gridSize" min="10" max="80" value="14"></div>
+                    <div class="slider-group"><div class="label-row">Prisma <b id="rgbVal">2.0</b></div><input type="range" id="rgbSplit" min="0" max="25" step="0.1" value="2.0"></div>
+                    <div class="slider-group"><div class="label-row">Helderheid <b id="gammaVal">1.0</b></div><input type="range" id="gamma" min="0.1" max="3" step="0.1" value="1.0"></div>
+                    <div class="slider-group"><div class="label-row">Contrast <b id="contrastVal">30</b></div><input type="range" id="contrast" min="-100" max="100" value="30"></div>
+                    <div class="slider-group"><div class="label-row">Verstrooiing <b id="scatterVal">0.0</b></div><input type="range" id="scatter" min="0" max="30" step="0.5" value="0.5"></div>
+                    <div class="slider-group"><div class="label-row">Snelheid <b id="speedVal">1.0</b></div><input type="range" id="speed" min="0.1" max="5.0" step="0.1" value="1.0"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <button class="p-btn accent" id="playBtn" onclick="togglePlay()">⏸</button>
+                    <button class="p-btn" onclick="state.showLogo = !state.showLogo">Logo Toggle</button>
+                    <button class="p-btn" id="screenshotBtn">Capture PNG</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bottom-hover-zone">
+        <div id="timeline-wrapper">
+            <input type="range" id="timeline" min="0" max="1000" value="0" style="width:100%;">
+        </div>
+    </div>
+
+    <canvas id="halftoneCanvas"></canvas>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('halftoneCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const buffer = document.createElement('canvas');
+    const bCtx = buffer.getContext('2d', { alpha: false });
+    const overlay = document.createElement('canvas');
+    const oCtx = overlay.getContext('2d', { alpha: false });
+
+    let mediaURL = null;
+    let mx = -1000, my = -1000;
+
+    window.state = {
+        showLogo: true,
+        dotShape: 'circle',
+        colorMode: 'normal',
+        time: 0
+    };
+
+    canvas.addEventListener('mousemove', (e) => { mx = e.clientX; my = e.clientY; });
+
+    const cubeSlots = [{ x: 277, y: -44 }, { x: 307, y: -14 }, { x: 247, y: -4 }];
+    const cubes = [
+        { cx: 0, cy: 0, tIdx: 0, pIdx: 0, color: [255, 30, 220] },
+        { cx: 0, cy: 0, tIdx: 1, pIdx: 1, color: [0, 255, 230] },
+        { cx: 0, cy: 0, tIdx: 2, pIdx: 2, color: [255, 255, 255] }
+    ];
+    let sequence = [0.3, 0.7, 1.5, 0.7], seqIdx = 0, lastSwitch = 0;
+
+    const el = {
+        grid: document.getElementById('gridSize'),
+        rgb: document.getElementById('rgbSplit'),
+        gamma: document.getElementById('gamma'),
+        contrast: document.getElementById('contrast'),
+        scatter: document.getElementById('scatter'),
+        speed: document.getElementById('speed'),
+        turb: document.getElementById('turb'),
+        ripple: document.getElementById('ripple'),
+        mouse: document.getElementById('mouseSens'),
+        timeline: document.getElementById('timeline'),
+        playBtn: document.getElementById('playBtn'),
+        colorSelect: document.getElementById('colorMode')
+    };
+
+    let video = null;
+    let staticImage = null;
+
+    window.handleUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if(mediaURL) URL.revokeObjectURL(mediaURL);
+        mediaURL = URL.createObjectURL(file);
+        if (file.type.startsWith('video')) loadVideo(mediaURL); else loadStatic(mediaURL);
+    };
+
+    window.loadStatic = (url) => {
+        if (video) { video.pause(); video.src = ""; }
+        video = null;
+        staticImage = new Image(); staticImage.crossOrigin = "anonymous";
+        staticImage.onload = () => { resize(); if(!animId) render(); };
+        staticImage.src = url;
+    };
+
+    window.loadVideo = (url) => {
+        staticImage = null; if (video) { video.pause(); video.src = ""; }
+        video = document.createElement('video'); video.src = url; video.loop = true; video.muted = true; video.crossOrigin = "anonymous";
+        video.play(); el.playBtn.innerText = "⏸";
+        video.onloadeddata = () => { resize(); if(!animId) render(); };
+    };
+
+    window.togglePlay = () => {
+        if(!video) return; video.paused ? video.play() : video.pause();
+        el.playBtn.innerText = video.paused ? "▶" : "⏸";
+    };
+
+    function process() {
+        const speedVal = parseFloat(el.speed.value);
+        state.time += 0.012 * speedVal;
+        
+        if (video) video.playbackRate = speedVal;
+
+        ['grid','rgb','gamma','contrast','scatter','speed','turb','ripple','mouse'].forEach(id => {
+            document.getElementById(id+'Val').textContent = parseFloat(el[id].value).toFixed(1);
+        });
+
+        if (state.showLogo) {
+            const now = performance.now() / 1000;
+            const prog = Math.min((now - lastSwitch) / sequence[seqIdx], 1);
+            const ease = t => t < 0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+            cubes.forEach(c => {
+                const s = cubeSlots[c.pIdx], e = cubeSlots[c.tIdx];
+                c.cx = s.x + (e.x - s.x) * ease(prog); c.cy = s.y + (e.y - s.y) * ease(prog);
+            });
+            if (prog >= 1) {
+                lastSwitch = now; seqIdx = (seqIdx + 1) % sequence.length;
+                let idxs = [0,1,2].sort(() => Math.random() - 0.5);
+                cubes.forEach((c, i) => { c.pIdx = c.tIdx; c.tIdx = idxs[i]; });
+            }
+        }
+
+        bCtx.fillStyle = '#000'; bCtx.fillRect(0,0,buffer.width, buffer.height);
+        let media = video || staticImage;
+        if (media && (video ? video.readyState >= 2 : media.complete)) {
+            const mW = video ? video.videoWidth : media.width, mH = video ? video.videoHeight : media.height;
+            const vR = mW / mH, bR = buffer.width / buffer.height;
+            let dW, dH;
+            if (bR < vR) { dH = buffer.height; dW = dH * vR; } else { dW = buffer.width; dH = dW / vR; }
+            bCtx.drawImage(media, (buffer.width-dW)/2, (buffer.height-dH)/2, dW, dH);
+        }
+
+        oCtx.fillStyle = '#000'; oCtx.fillRect(0,0,overlay.width, overlay.height);
+        if (state.showLogo) {
+            const tx = 60, ty = window.innerHeight / 2 - 450; 
+            oCtx.font = "900 65px Inter"; oCtx.fillStyle = "#fff";
+            oCtx.fillText("Maidocs", tx, ty); oCtx.fillText("playground", tx, ty + 65);
+            cubes.forEach(c => drawCube(oCtx, tx + c.cx, ty + c.cy + Math.sin(state.time*4)*5, 18, state.time, c.color));
+        }
+
+        const vData = bCtx.getImageData(0,0,buffer.width, buffer.height).data;
+        const sData = oCtx.getImageData(0,0,overlay.width, overlay.height).data;
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width, canvas.height);
+
+        const vStep = Math.max(10, parseInt(el.grid.value));
+        const gm = parseFloat(el.gamma.value);
+        const split = parseFloat(el.rgb.value) * 1.8; // Verfijnde nuance
+        const scatter = parseFloat(el.scatter.value);
+        const cf = (259*(parseInt(el.contrast.value)+255)) / (255*(259-parseInt(el.contrast.value)));
+        const turb = parseFloat(el.turb.value) / 120;
+        const ripStrength = parseFloat(el.ripple.value) / 50;
+        const mouseSens = parseFloat(el.mouse.value);
+
+        let rx = (mouseSens > 0) ? mx : canvas.width / 2;
+        let ry = (mouseSens > 0) ? my : canvas.height / 2;
+
+        for (let y=0; y<canvas.height; y+=vStep) {
+            for (let x=0; x<canvas.width; x+=vStep) {
+                const i = (y * canvas.width + x) * 4;
+                if (sData[i]+sData[i+1]+sData[i+2] > 30) continue;
+                
+                let r=vData[i], g=vData[i+1], b=vData[i+2];
+                let grayRaw = (0.299*r + 0.587*g + 0.114*b);
+
+                // Kleurmodi & Filters
+                if(state.colorMode === 'mono') { r=g=b=grayRaw; }
+                else if(state.colorMode === 'negative') { r=255-r; g=255-g; b=255-b; }
+                else if(state.colorMode === 'cyber') { r=r>128?255:50; g=g<100?255:0; b=255; }
+                else if(state.colorMode === 'acid') { const h=(state.time*10)%360; r=Math.abs(Math.sin(h)*r); g=Math.abs(Math.cos(h)*g); }
+                else if(state.colorMode === 'warm') { r = r*1.2+30; b = b*0.8; }
+                else if(state.colorMode === 'hue') {
+                    const h = (state.time * 20 + x*0.05) % 360; const rgb = hslToRgb(h/360, 0.8, 0.5);
+                    r = (rgb[0] * grayRaw) / 128; g = (rgb[1] * grayRaw) / 128; b = (rgb[2] * grayRaw) / 128;
+                } else if(state.colorMode === 'glow') {
+                    const l = 1 + Math.sin(state.time*3 + (x+y)*0.01)*0.4; r*=l; g*=l; b*=l;
+                }
+
+                let gray = (0.299*r + 0.587*g + 0.114*b);
+                gray = Math.max(0, Math.min(255, cf*(gray-128)+128));
+                gray = 255 * Math.pow(gray/255, gm); 
+                
+                const edx = x - rx, edy = y - ry;
+                const angle = Math.atan2(edy, edx);
+                let dist = Math.sqrt(edx*edx + edy*edy);
+                const warp = Math.sin(angle * 5 + state.time * 3) * 25;
+                const waveD = dist + warp;
+
+                const mouseWave = (mouseSens > 0) ? Math.sin(waveD * 0.04 - state.time * 8) * Math.exp(-dist * 0.005) * (mouseSens/10) : 0;
+                const ex2 = canvas.width/2 + Math.cos(state.time * 0.5) * 300;
+                const ey2 = canvas.height/2 + Math.sin(state.time * 0.3) * 300;
+                const dist2 = Math.sqrt((x-ex2)**2 + (y-ey2)**2);
+                const ripple = (Math.sin(waveD * 0.03 - state.time * 5) * Math.exp(-dist * 0.001) + 
+                                Math.sin(dist2 * 0.02 - state.time * 3) * 0.3) * ripStrength;
+
+                const flux = (Math.sin(x*0.007 + state.time*2.5) + Math.cos(y*0.01 + state.time*1.8)) * turb;
+
+                const localScale = 1.0 + flux + ripple + mouseWave;
+                let radBase = (vStep/2.2)*(gray/255) * localScale;
+
+                // Glimmer Stand Logica
+                if(state.colorMode === 'glimmer') {
+                    const glim = 0.5 + Math.pow(Math.sin(state.time * 8 + (x * 0.05) + (y * 0.05)), 12) * 1.5;
+                    radBase *= glim;
+                }
+
+                const ox = (Math.random()-0.5) * scatter, oy = (Math.random()-0.5) * scatter;
+
+                if (radBase > 0.3) drawShape(ctx, x + ox, y + oy, radBase, r, g, b, split, state.dotShape);
+            }
+        }
+
+        // Branding dots
+        for (let y=0; y<canvas.height; y+=3) {
+            for (let x=0; x<canvas.width; x+=3) {
+                const j = (y * canvas.width + x) * 4;
+                if (sData[j]+sData[j+1]+sData[j+2] < 30) continue;
+                drawShape(ctx, x, y, 1.8, sData[j], sData[j+1], sData[j+2], 10 + Math.sin(state.time*12 + x*0.04)*6, 'circle');
+            }
+        }
+        if (video) el.timeline.value = (video.currentTime / video.duration) * 1000;
+    }
+
+    function hslToRgb(h, s, l){
+        let r, g, b;
+        const hue2rgb = (p, q, t) => {
+            if(t < 0) t += 1; if(t > 1) t -= 1;
+            if(t < 1/6) return p + (q - p) * 6 * t; if(t < 1/2) return q;
+            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6; return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s; const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1/3);
+        return [r * 255, g * 255, b * 255];
+    }
+
+    function drawShape(ctx, x, y, r, or, og, ob, split, shape) {
+        const render = (ox) => {
+            ctx.beginPath();
+            if (shape === 'plus') { ctx.moveTo(x+ox-r,y); ctx.lineTo(x+ox+r,y); ctx.moveTo(x+ox,y-r); ctx.lineTo(x+ox,y+r); ctx.stroke(); }
+            else if (shape === 'cross') { ctx.moveTo(x+ox-r,y-r); ctx.lineTo(x+ox+r,y+r); ctx.moveTo(x+ox+r,y-r); ctx.lineTo(x+ox-r,y+r); ctx.stroke(); }
+            else if (shape === 'square') { ctx.rect(x+ox-r,y-r,r*2,r*2); ctx.fill(); }
+            else { ctx.arc(x+ox, y, r, 0, 6.3); ctx.fill(); }
+        };
+        ctx.lineWidth = r * 0.6;
+        if (split > 0.5) {
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = ctx.strokeStyle = 'rgba(255,0,0,1)'; render(-split);
+            ctx.fillStyle = ctx.strokeStyle = 'rgba(0,255,0,1)'; render(0);
+            ctx.fillStyle = ctx.strokeStyle = 'rgba(0,0,255,1)'; render(split);
+            ctx.globalCompositeOperation = 'source-over';
+        } else { ctx.fillStyle = ctx.strokeStyle = `rgb(${or},${og},${ob})`; render(0); }
+    }
+
+    function drawCube(ctx, x, y, size, rot, rgb) {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+        const h = size * 0.6;
+        ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; ctx.beginPath(); ctx.moveTo(0,-h); ctx.lineTo(size/2, -h/2); ctx.lineTo(0,0); ctx.lineTo(-size/2, -h/2); ctx.fill();
+        ctx.fillStyle = `rgb(${rgb[0]*0.7},${rgb[1]*0.7},${rgb[2]*0.7})`; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(size/2, -h/2); ctx.lineTo(size/2, h/2); ctx.lineTo(0, h); ctx.fill();
+        ctx.fillStyle = `rgb(${rgb[0]*0.4},${rgb[1]*0.4},${rgb[2]*0.4})`; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-size/2, -h/2); ctx.lineTo(-size/2, h/2); ctx.lineTo(0, h); ctx.fill();
+        ctx.restore();
+    }
+
+    function resize() {
+        canvas.width = buffer.width = overlay.width = window.innerWidth;
+        canvas.height = buffer.height = overlay.height = window.innerHeight;
+    }
+
+    let animId = null;
+    function render() { process(); animId = requestAnimationFrame(render); }
+
+    window.applyPreset = (p) => {
+        state.colorMode = 'normal'; el.colorSelect.value = 'normal';
+        if (p === 'landschap') {
+            state.dotShape = 'circle';
+            el.grid.value = 14; el.rgb.value = 0.0; el.gamma.value = 0.1;
+            el.contrast.value = -100; el.scatter.value = 0.0; 
+            el.turb.value = 0.0; el.ripple.value = 4.0; el.speed.value = 4.0;
+            el.mouse.value = 0.0;
+            loadStatic('https://i.imgur.com/ewc3C2I.jpg');
+        } else if (p === 'kruis') {
+            state.dotShape = 'plus';
+            el.grid.value = 10; el.rgb.value = 0.0; el.gamma.value = 0.1;
+            el.contrast.value = -100; el.scatter.value = 1.0; el.speed.value = 1.0;
+            loadVideo('https://i.imgur.com/Mq2RY5F.mp4');
+        } else {
+            state.dotShape = 'circle';
+            el.grid.value = 12; el.rgb.value = 2.0; el.gamma.value = 1.0;
+            el.contrast.value = 30; el.scatter.value = 0.5; el.speed.value = 1.0;
+            loadVideo('https://i.imgur.com/5PrJCc2.mp4');
+        }
+    };
+
+    el.timeline.oninput = (e) => { if(video) video.currentTime = (e.target.value/1000)*video.duration; };
+    document.getElementById('screenshotBtn').onclick = () => {
+        const link = document.createElement('a'); link.download = 'capture.png'; link.href = canvas.toDataURL(); link.click();
+    };
+
+    window.onresize = resize;
+    applyPreset('kruis'); // Start nu met Hart
+});
+</script>
+</body>
+</html>
